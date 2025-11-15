@@ -23,8 +23,17 @@ const Authors = ({ show }) => {
   const authors = result.data.allAuthors;
   const options = authors.map((a) => ({ value: a.name, label: a.name }));
 
+  // Initialize selectedOption with the first author if not already set
+  if (!selectedOption && options.length > 0) {
+    setSelectedOption(options[0]);
+  }
+
   const submit = async (event) => {
     event.preventDefault();
+
+    if (!selectedOption) {
+      return;
+    }
 
     await editAuthor({
       variables: { name: selectedOption.value, setBornTo: parseInt(born) },
