@@ -165,43 +165,32 @@ const resolvers = {
         });
       }
 
-      let author = await Author.findOne({ name: args.author });
-
-      if (!author) {
-        author = new Author({ name: args.author });
-        try {
-          await author.save();
-        } catch (error) {
-          throw new GraphQLError(error.message, {
-            extensions: {
-              code: "BAD_USER_INPUT",
-              invalidArgs: args.author,
-              error: error.message,
-            },
-          });
-        }
-      }
-
-      const book = new Book({
-        title: args.title,
-        published: args.published,
-        author: author._id,
-        genres: args.genres,
-      });
-
       try {
+        let author = await Author.findOne({ name: args.author });
+
+        if (!author) {
+          author = new Author({ name: args.author });
+          await author.save();
+        }
+
+        const book = new Book({
+          title: args.title,
+          published: args.published,
+          author: author._id,
+          genres: args.genres,
+        });
+
         await book.save();
+        return book.populate("author");
       } catch (error) {
         throw new GraphQLError(error.message, {
           extensions: {
             code: "BAD_USER_INPUT",
-            invalidArgs: args.title,
+            invalidArgs: args.author || args.title,
             error: error.message,
           },
         });
       }
-
-      return book.populate("author");
     },
     addAuthor: async (root, args) => {
       const author = new Author({ ...args });

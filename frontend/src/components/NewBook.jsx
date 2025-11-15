@@ -11,6 +11,10 @@ const NewBook = (props) => {
 
   const [createBook] = useMutation(CREATE_BOOK, {
     refetchQueries: [{ query: ALL_BOOKS }, { query: ALL_AUTHORS }],
+    onQueryUpdated(observableQuery) {
+      // This will refetch all active ALL_BOOKS queries, including those with variables
+      return observableQuery.refetch();
+    },
   });
 
   const submit = async (event) => {
