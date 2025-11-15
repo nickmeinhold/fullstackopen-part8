@@ -4,13 +4,21 @@ import { ALL_BOOKS } from "../../queries";
 
 const Books = ({ show }) => {
   const [genre, setGenre] = useState(null);
-  const result = useQuery(ALL_BOOKS);
+
+  // Fetch all books to get the list of genres
+  const allBooksResult = useQuery(ALL_BOOKS);
+
+  // Fetch filtered books based on selected genre
+  const result = useQuery(ALL_BOOKS, {
+    variables: { genre },
+    skip: !show,
+  });
 
   if (!show) {
     return null;
   }
 
-  if (result.loading) {
+  if (result.loading || allBooksResult.loading) {
     return <div>loading...</div>;
   }
 
@@ -18,15 +26,15 @@ const Books = ({ show }) => {
     return <div>Error: {result.error.message}</div>;
   }
 
+  if (allBooksResult.error) {
+    return <div>Error: {allBooksResult.error.message}</div>;
+  }
+
   const books = result.data.allBooks;
+  const allBooks = allBooksResult.data.allBooks;
 
-  // Get all unique genres
-  const allGenres = [...new Set(books.flatMap((b) => b.genres))];
-
-  // Filter books by selected genre
-  const booksToShow = genre
-    ? books.filter((b) => b.genres.includes(genre))
-    : books;
+  // Get all unique genres from all books
+  const allGenres = [...new Set(allBooks.flatMap((b) => b.genres))];
 
   return (
     <div>
@@ -39,7 +47,7 @@ const Books = ({ show }) => {
             <th>author</th>
             <th>published</th>
           </tr>
-          {booksToShow.map((a) => (
+          {books.map((a) => (
             <tr key={a.title}>
               <td>{a.title}</td>
               <td>{a.author.name}</td>
