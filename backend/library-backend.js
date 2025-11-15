@@ -17,6 +17,7 @@ const mongoose = require("mongoose");
 mongoose.set("strictQuery", false);
 const { PubSub } = require("graphql-subscriptions");
 const pubsub = new PubSub();
+const DataLoader = require("dataloader");
 
 const Author = require("./models/author");
 const Book = require("./models/book");
@@ -36,6 +37,31 @@ mongoose
   })
   .catch((error) => {
     console.log("error connection to MongoDB:", error.message);
+  });
+
+// DataLoader to batch book count queries
+const createBookCountLoader = () =>
+  new DataLoader(async (authorIds) => {
+    console.log(
+      "DataLoader batching book counts for",
+      authorIds.length,
+      "authors"
+    );
+
+    // Single aggregation query to get book counts for all authors at once
+    const bookCounts = await Book.aggregate([
+      { $match: { author: { $in: authorIds } } },
+      { $group: { _id: "$author", count: { $sum: 1 } } },
+    ]);
+
+    // Create a map of authorId -> count
+    const countMap = {};
+    bookCounts.forEach((item) => {
+      countMap[item._id.toString()] = item.count;
+    });
+
+    // Return counts in the same order as authorIds
+    return authorIds.map((id) => countMap[id.toString()] || 0);
   });
 
 const typeDefs = `
@@ -128,8 +154,8 @@ const resolvers = {
     allAuthors: async () => Author.find({}),
   },
   Author: {
-    bookCount: async (root) => {
-      return Book.countDocuments({ author: root._id });
+    bookCount: async (root, args, context) => {
+      return context.bookCountLoader.load(root._id);
     },
   },
   Mutation: {
@@ -272,9 +298,15 @@ const start = async () => {
             process.env.JWT_SECRET
           );
           const currentUser = await User.findById(decodedToken.id);
-          return { currentUser };
+          return {
+            currentUser,
+            bookCountLoader: createBookCountLoader(),
+          };
         }
-        return { currentUser: null };
+        return {
+          currentUser: null,
+          bookCountLoader: createBookCountLoader(),
+        };
       },
     },
     wsServer
@@ -311,9 +343,15 @@ const start = async () => {
             process.env.JWT_SECRET
           );
           const currentUser = await User.findById(decodedToken.id);
-          return { currentUser };
+          return {
+            currentUser,
+            bookCountLoader: createBookCountLoader(),
+          };
         }
-        return { currentUser: null };
+        return {
+          currentUser: null,
+          bookCountLoader: createBookCountLoader(),
+        };
       },
     })
   );
