@@ -20,8 +20,14 @@ const NewBook = (props) => {
   const submit = async (event) => {
     event.preventDefault();
 
+    const publishedYear = parseInt(published);
+    if (!publishedYear || publishedYear <= 0) {
+      console.error("Published year must be a valid positive number");
+      return;
+    }
+
     await createBook({
-      variables: { title, author, published: parseInt(published), genres },
+      variables: { title, author, published: publishedYear, genres },
     });
 
     console.log("add book...");
