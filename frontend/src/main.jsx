@@ -30,9 +30,15 @@ const wsLink = new GraphQLWsLink(
     url: "ws://localhost:4000",
     connectionParams: () => {
       const token = localStorage.getItem("library-user-token");
+      console.log("WebSocket connecting with token:", token ? "YES" : "NO");
       return {
         authorization: token ? `Bearer ${token}` : null,
       };
+    },
+    on: {
+      connected: () => console.log("WebSocket connected"),
+      closed: () => console.log("WebSocket closed"),
+      error: (error) => console.error("WebSocket error:", error),
     },
   })
 );

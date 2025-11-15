@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useSubscription } from "@apollo/client/react";
+import { gql } from "@apollo/client";
+import { useApolloClient, useSubscription } from "@apollo/client/react";
 import { BOOK_ADDED } from "../queries";
 import Authors from "./components/Authors";
 import Books from "./components/Books";
@@ -18,12 +19,67 @@ const App = () => {
   const [page, setPage] = useState("authors");
   const [token, setToken] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
+  const client = useApolloClient();
 
   useSubscription(BOOK_ADDED, {
-    onData: ({ data }) => {
+    onData: ({ data, client }) => {
+      console.log("=== SUBSCRIPTION EVENT RECEIVED ===");
+      console.log("Raw data:", data);
       const addedBook = data.data.bookAdded;
       console.log("Book added via subscription:", addedBook);
       notify(`${addedBook.title} by ${addedBook.author.name} added`);
+
+      // Update ALL_BOOKS cache entries
+      // This approach modifies the cache for all query variations
+      client.cache.modify({
+        fields: {
+          allBooks(existingBooks = [], { readField, storeFieldName }) {
+            console.log("Modifying cache for:", storeFieldName);
+
+            // Check if the book already exists
+            const bookExists = existingBooks.some(
+              (bookRef) => readField("id", bookRef) === addedBook.id
+            );
+
+            if (bookExists) {
+              return existingBooks;
+            }
+
+            // Check if this query has a genre filter
+            const match = storeFieldName.match(
+              /allBooks\({"genre":"([^"]+)"\}/
+            );
+            if (match) {
+              const filterGenre = match[1];
+              // Only add the book if it matches the genre filter
+              if (!addedBook.genres.includes(filterGenre)) {
+                return existingBooks;
+              }
+            }
+
+            // Create a reference to the new book
+            const newBookRef = client.cache.writeFragment({
+              data: addedBook,
+              fragment: gql`
+                fragment NewBook on Book {
+                  id
+                  title
+                  author {
+                    name
+                    born
+                    id
+                  }
+                  published
+                  genres
+                }
+              `,
+            });
+
+            console.log("Adding book to cache:", addedBook.title);
+            return [...existingBooks, newBookRef];
+          },
+        },
+      });
     },
   });
 
