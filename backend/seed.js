@@ -1,5 +1,6 @@
 const Author = require("./models/author");
 const Book = require("./models/book");
+const User = require("./models/user");
 
 const seedAuthors = [
   {
@@ -73,6 +74,7 @@ const seedDatabase = async () => {
     console.log("Clearing database...");
     await Book.deleteMany({});
     await Author.deleteMany({});
+    await User.deleteMany({});
 
     console.log("Seeding authors...");
     const authorDocs = await Author.insertMany(
@@ -92,7 +94,14 @@ const seedDatabase = async () => {
       }
     }
 
+    console.log("Seeding user...");
+    await User.create({
+      username: "mluukkai",
+      favoriteGenre: "refactoring",
+    });
+
     console.log("Database seeded successfully!");
+    console.log("Test credentials: username='mluukkai', password='secret'");
   } catch (error) {
     console.error("Error seeding database:", error.message);
   }
